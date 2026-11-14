@@ -136,7 +136,7 @@ newBullet model  =
 handleMotion computer model =
   { model
     | ship      = (applyShipControls computer >> moveObject computer) model.ship
-    , asteroids = List.map (moveObject computer) model.asteroids |> regenerateAsteroidsIfEmpty computer
+    , asteroids = List.map (bounceObject computer) model.asteroids |> regenerateAsteroidsIfEmpty computer
     , bullets   = List.map (moveObject computer) model.bullets
   }
 
@@ -147,6 +147,26 @@ moveObject computer obj =
     , y = obj.y + obj.dy |> wrap (computer.screen.bottom - largeAsteroidRadius) (computer.screen.top + largeAsteroidRadius)
     , dir = obj.dir + obj.spin
   }
+
+-- Like moveObject, but bounces off the screen edges instead of wrapping around
+bounceObject : Computer -> GameObject -> GameObject
+bounceObject computer obj =
+  let
+    (x, dx) = bounce (computer.screen.left + obj.radius)   (computer.screen.right - obj.radius) obj.x obj.dx
+    (y, dy) = bounce (computer.screen.bottom + obj.radius) (computer.screen.top - obj.radius)   obj.y obj.dy
+  in
+    { obj | x = x, y = y, dx = dx, dy = dy, dir = obj.dir + obj.spin }
+
+-- Moves pos by vel along one axis, keeping it between low and high.
+-- Returns the new (position, velocity).
+bounce : Float -> Float -> Float -> Float -> (Float, Float)
+bounce low high pos vel =
+  if pos + vel < low then
+    (pos + vel, abs vel)
+  else if pos + vel > high then
+    (pos - (abs vel), -(abs vel))
+  else
+    (pos + vel, vel)
 
 applyShipControls : Computer -> GameObject -> GameObject
 applyShipControls computer ship =
